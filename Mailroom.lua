@@ -49,6 +49,7 @@ local AUTOCOMPLETE_FLAGS = Enum.AutoCompleteEntryFlag.InGroup + Enum.AutoComplet
 
 -- ClassicAPI's client-side lock greys a queued attachment in every bag addon.
 -- It is only a look: the hooks below still keep queued items in place.
+-- A server update for the item clears the lock, so relock_items puts it back.
 local location = {}
 local function lock_item( item )
   location.bagID, location.slotIndex = item[ 1 ], item[ 2 ]
@@ -58,6 +59,22 @@ local function unlock_item( item )
   location.bagID, location.slotIndex = item[ 1 ], item[ 2 ]
   C_Item.UnlockItem( location )
 end
+local function relock( item )
+  location.bagID, location.slotIndex = item[ 1 ], item[ 2 ]
+  if not C_Item.IsLocked( location ) then C_Item.LockItem( location ) end
+end
+
+-- Greys every attached or queued item again after a bag change cleared its lock.
+function Mailroom.relock_items()
+  for i = 1, ATTACHMENTS_MAX do
+    local item = attachment_button[ i ].item
+    if item then relock( item ) end
+  end
+  if m.sendmail_state then
+    for _, item in ipairs( m.sendmail_state.attachments ) do relock( item ) end
+  end
+end
+
 Mailroom.orig = {}
 Mailroom.hooks = {}
 Mailroom.hook = setmetatable( {}, { __newindex = function( _, k, v ) m.hooks[ k ] = v end } )
@@ -189,6 +206,7 @@ end
 -- ClassicAPI fires this once per frame after any bag change. None on the
 -- Inbox tab: switching to Send Mail refreshes it anyway.
 function Mailroom.BAG_UPDATE_DELAYED()
+  m.relock_items()
   if SendMailFrame:IsVisible() then
     SendMailFrame_Update()
   end
@@ -1063,8 +1081,8 @@ function Mailroom.sendmail_set_attachment( item, slot )
     if not (item or slot.item) then return true end
     if slot.item then unlock_item( slot.item ) end
     slot.item = item
+    ClearCursor() -- puts the item back, which unlocks it: lock after
     if item then lock_item( item ) end
-    ClearCursor()
     SendMailFrame_Update()
     return true
   end
