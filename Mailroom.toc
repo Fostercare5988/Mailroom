@@ -1,0 +1,9 @@
+## Interface: 11200
+## Title: |cffff9e38Mailroom|r
+## Notes: Open all mail in one click, send many attachments, complete recipient names.
+## Author: Fostercare5988
+## Version: 1.0.0
+## SavedVariables: Mailroom_AutoCompleteNames
+## SavedVariablesPerCharacter: Mailroom_To
+
+Mailroom.xml
