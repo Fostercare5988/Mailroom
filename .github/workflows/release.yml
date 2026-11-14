@@ -1,0 +1,30 @@
+name: Release
+
+# Each new "## Version:" in the TOC becomes a release: <Addon>.zip holds the
+# addon in a folder of its own name, ready to extract into Interface/AddOns.
+on:
+  push:
+    branches: [main]
+    paths: ["*.toc", ".github/workflows/release.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release the TOC version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          toc=$(ls *.toc | head -n 1)
+          folder=${toc%.toc}
+          version=$(sed -n 's/^## Version: *\([^[:space:]]*\).*/\1/p' "$toc" | tr -d '\r')
+          [ -n "$version" ] || { echo "No version in $toc"; exit 0; }
+          if gh release view "v$version" > /dev/null 2>&1; then echo "v$version is out"; exit 0; fi
+          zip="${folder#!}.zip"
+          git archive --prefix="$folder/" -o "$zip" HEAD -- . ':(exclude).github' ':(exclude).gitignore' ':(exclude).gitattributes' ':(exclude).dev'
+          gh release create "v$version" "$zip" --target "$GITHUB_SHA" --title "$folder $version" --generate-notes
